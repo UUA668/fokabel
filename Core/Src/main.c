@@ -31,6 +31,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define ADC_TIMEOUT 100
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -39,12 +40,17 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+ADC_HandleTypeDef hadc1;
+
 RTC_HandleTypeDef hrtc;
 
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-
+uint32_t ADC_Value = 0;
+uint32_t vrefint = 0;
+uint32_t temperature = 0;
+ADC_ChannelConfTypeDef sConfig = {0};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -52,6 +58,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_RTC_Init(void);
+static void MX_ADC1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -91,7 +98,45 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_RTC_Init();
+  MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
+ if (HAL_ADCEx_Calibration_Start(&hadc1) != HAL_OK)
+ 	 {
+	 HAL_Delay(1000);  				/*szivas*/
+ 	 }
+ if (ADC_Enable(&hadc1) != HAL_OK)
+ 	 {
+	 HAL_Delay(1000);  				/*szivas*/
+ 	 }
+
+
+ sConfig.Channel = ADC_CHANNEL_VREFINT;
+ sConfig.Rank = ADC_REGULAR_RANK_1;
+ sConfig.SamplingTime = ADC_SAMPLINGTIME_COMMON_1;
+ ADC_Value = 0;
+
+ HAL_ADC_Start(&hadc1);
+ if (HAL_ADC_PollForConversion(&hadc1, ADC_TIMEOUT) == HAL_OK)
+	 {
+	 ADC_Value = HAL_ADC_GetValue(&hadc1);
+	 vrefint = __LL_ADC_CALC_VREFANALOG_VOLTAGE(ADC_Value,LL_ADC_RESOLUTION_12B);
+	 }
+ HAL_ADC_Stop(&hadc1);
+
+
+
+ sConfig.Channel = ADC_CHANNEL_TEMPSENSOR;
+ sConfig.Rank = ADC_REGULAR_RANK_2;
+ sConfig.SamplingTime = ADC_SAMPLINGTIME_COMMON_2;
+ ADC_Value = 0;
+
+ HAL_ADC_Start(&hadc1);
+ if(HAL_ADC_PollForConversion(&hadc1, ADC_TIMEOUT) == HAL_OK)
+ {
+ ADC_Value = HAL_ADC_GetValue(&hadc1);
+ temperature = __LL_ADC_CALC_TEMPERATURE(vrefint,ADC_Value,LL_ADC_RESOLUTION_12B);
+ }
+ HAL_ADC_Stop(&hadc1);
 
   /* USER CODE END 2 */
 
@@ -150,6 +195,75 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief ADC1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ADC1_Init(void)
+{
+
+  /* USER CODE BEGIN ADC1_Init 0 */
+
+  /* USER CODE END ADC1_Init 0 */
+
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC1_Init 1 */
+
+  /* USER CODE END ADC1_Init 1 */
+
+  /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
+  */
+  hadc1.Instance = ADC1;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
+  hadc1.Init.Resolution = ADC_RESOLUTION_12B;
+  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc1.Init.ScanConvMode = ADC_SCAN_ENABLE;
+  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  hadc1.Init.LowPowerAutoWait = DISABLE;
+  hadc1.Init.LowPowerAutoPowerOff = DISABLE;
+  hadc1.Init.ContinuousConvMode = DISABLE;
+  hadc1.Init.NbrOfConversion = 2;
+  hadc1.Init.DiscontinuousConvMode = DISABLE;
+  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc1.Init.DMAContinuousRequests = DISABLE;
+  hadc1.Init.Overrun = ADC_OVR_DATA_PRESERVED;
+  hadc1.Init.SamplingTimeCommon1 = ADC_SAMPLETIME_1CYCLE_5;
+  hadc1.Init.SamplingTimeCommon2 = ADC_SAMPLETIME_160CYCLES_5;
+  hadc1.Init.OversamplingMode = DISABLE;
+  hadc1.Init.TriggerFrequencyMode = ADC_TRIGGER_FREQ_HIGH;
+  if (HAL_ADC_Init(&hadc1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_VREFINT;
+  sConfig.Rank = ADC_REGULAR_RANK_1;
+  sConfig.SamplingTime = ADC_SAMPLINGTIME_COMMON_1;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_TEMPSENSOR;
+  sConfig.Rank = ADC_REGULAR_RANK_2;
+  sConfig.SamplingTime = ADC_SAMPLINGTIME_COMMON_2;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC1_Init 2 */
+
+  /* USER CODE END ADC1_Init 2 */
+
 }
 
 /**
